@@ -1,0 +1,102 @@
+import { NextFunction, Request, Response } from "express";
+import { catchAsync } from "../../utils/catchAsync";
+import { authServices } from "./auth.service";
+import sendResponse from "../../utils/sendResponse";
+import httpStatus from "http-status";
+import config from "../../config";
+import passport from "passport";
+import AppError from "../../errors/AppError";
+import type { AuthenticateCallback } from "passport";
+
+const registerUser = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const payload = req.body;
+    const result = await authServices.registerUser(payload);
+
+    sendResponse(
+      res,
+      { message: "User created successfully!", data: result },
+      httpStatus.CREATED,
+    );
+  },
+);
+
+const loginUser = (req: Request, res: Response, next: NextFunction) => {
+  const callback: AuthenticateCallback = async (err, user, info) => {
+    try {
+      if (err) {
+        return next(err);
+      }
+
+      if (!user) {
+        const message =
+          typeof info === "object" &&
+          info !== null &&
+          "message" in info &&
+          typeof info.message === "string"
+            ? info.message
+            : "Invalid email or password";
+
+        return next(new AppError(httpStatus.UNAUTHORIZED, message));
+      }
+
+      const { accessToken, refreshToken } =
+        await authServices.generateTokens(user);
+
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
+        maxAge: 1000 * 60 * 60 * 24,
+      });
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
+        maxAge: 1000 * 60 * 60 * 24 * 7,
+      });
+
+      return sendResponse(res, {
+        message: "User logged in successfully!",
+        data: { accessToken, refreshToken },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  passport.authenticate("local", callback)(req, res, next);
+};
+
+const googleCallback = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+
+    const { accessToken, refreshToken } = await authServices.generateTokens(
+      user!,
+    );
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: config.node_env === "production" ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: config.node_env === "production" ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    res.redirect(`${config.frontend_url}/auth/success`);
+  },
+);
+
+export const authControllers = {
+  registerUser,
+  loginUser,
+  googleCallback,
+};
