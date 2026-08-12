@@ -20,4 +20,11 @@ export default {
   google_client_id: process.env.GOOGLE_CLIENT_ID!,
   google_client_secret: process.env.GOOGLE_CLIENT_SECRET!,
   google_callback_url: process.env.GOOGLE_CALLBACK_URL!,
+  redis_user: process.env.REDIS_USER!,
+  redis_password: process.env.REDIS_PASSWORD!,
+  redis_host: process.env.REDIS_HOST!,
+  redis_port: process.env.REDIS_PORT!,
+  smtp_user: process.env.SMTP_USER!,
+  smtp_password: process.env.SMTP_PASSWORD!,
+  email_sender: process.env.EMAIL_SENDER!,
 };

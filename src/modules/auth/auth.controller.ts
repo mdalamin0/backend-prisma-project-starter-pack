@@ -144,11 +144,37 @@ const updateMe = catchAsync(
   },
 );
 
+const forgotPassword = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const payload = req.body;
+    await authServices.forgotPassword(payload);
+    
+      sendResponse(res, {
+        message: `OTP Sent To your Email : ${payload.email}`,
+        data: null,
+      });
+  },
+);
+
+const resetPassword = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+     const payload = req.body;
+     await authServices.resetPassword(payload);
+
+     sendResponse(res, {
+       message: `Password changed successfully!`,
+       data: null,
+     });
+  },
+);
+
 export const authControllers = {
   registerUser,
   loginUser,
   googleCallback,
   updateMe,
   getMe,
-  logout
+  logout,
+  forgotPassword,
+  resetPassword
 };

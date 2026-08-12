@@ -16,3 +16,12 @@ export interface ProfileUpdatePayload {
   name?: string;
   image?: string;
 }
+
+export interface IForgotPasswordPayload {
+  email: string;
+}
+export interface IResetPasswordPayload {
+  email: string;
+  newPassword: string;
+  otp: string;
+}

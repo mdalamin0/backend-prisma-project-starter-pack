@@ -2,9 +2,11 @@ import { Router } from "express";
 import { authControllers } from "./auth.controller";
 import validateRequest from "../../middlewares/validateRequest";
 import {
+  ForgotPasswordZodSchema,
   loginValidationSchema,
   profileUpdateSchema,
   registerValidationSchema,
+  ResetPasswordZodSchema,
 } from "./auth.validation";
 import passport from "passport";
 import { auth } from "../../middlewares/auth";
@@ -49,6 +51,18 @@ router.patch(
 );
 
 router.post("/logout", authControllers.logout);
+
+router.post(
+  "/forgot-password",
+  validateRequest(ForgotPasswordZodSchema),
+  authControllers.forgotPassword,
+);
+
+router.post(
+  "/reset-password",
+  validateRequest(ResetPasswordZodSchema),
+  authControllers.resetPassword,
+);
 
 
 export const authRoutes = router;
