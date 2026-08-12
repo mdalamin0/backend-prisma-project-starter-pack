@@ -47,6 +47,7 @@ export const auth = (...requiredRoles: Role[]) => {
       );
     }
 
+req.user= user
 
     next();
   });

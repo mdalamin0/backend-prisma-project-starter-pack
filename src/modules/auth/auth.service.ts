@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
-import { CreateUserPayload, LoginUserPayload } from "./auth.interface";
+import { CreateUserPayload, LoginUserPayload, ProfileUpdatePayload } from "./auth.interface";
 import config from "../../config";
 import { AuthProvider, UserStatus } from "../../../generated/prisma/enums";
 import httpStatus from "http-status";
@@ -69,7 +69,51 @@ const generateTokens = async (user: PrismaUser) => {
   };
 };
 
+const getMe = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    omit: {
+      password: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return user;
+};
+
+const updateMe = async(payload:ProfileUpdatePayload, userId: string) => {
+   const user = await prisma.user.findUnique({
+    where: {
+      id: userId
+    }
+   })
+
+   if(!user){
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!")
+   }
+
+   const updatedUser = await prisma.user.update({
+    where: {
+      id: userId
+    },
+    data: {
+      name: payload.name,
+      image: payload.image
+    },
+    omit: {password: true}
+   })
+
+   return updatedUser
+}
+
+
 export const authServices = {
   registerUser,
   generateTokens,
+  getMe,
+  updateMe
 };

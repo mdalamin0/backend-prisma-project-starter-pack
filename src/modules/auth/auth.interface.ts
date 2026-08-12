@@ -11,3 +11,8 @@ export interface LoginUserPayload {
   email: string;
   password: string;
 }
+
+export interface ProfileUpdatePayload {
+  name?: string;
+  image?: string;
+}

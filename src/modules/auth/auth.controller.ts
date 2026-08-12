@@ -95,8 +95,60 @@ const googleCallback = catchAsync(
   },
 );
 
+const getMe = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id;
+    const result = await authServices.getMe(userId as string);
+
+    sendResponse(res, {
+      message: "User data retrive successfully.",
+      data: result,
+    });
+  },
+);
+
+const logout = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: config.node_env === "production" ? "none" : "lax",
+    });
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: config.node_env === "production" ? "none" : "lax",
+    });
+
+    sendResponse(
+      res,
+      {
+        message: "User logged out successfully!",
+      },
+      httpStatus.OK,
+    );
+  },
+);
+
+const updateMe = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const payload = req.body;
+    const userId = req.user?.id;
+    const result = await authServices.updateMe(payload, userId!);
+
+    sendResponse(res, {
+      message: "User update successfully.",
+      data: result,
+    });
+  },
+);
+
 export const authControllers = {
   registerUser,
   loginUser,
   googleCallback,
+  updateMe,
+  getMe,
+  logout
 };
