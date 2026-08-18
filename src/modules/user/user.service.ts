@@ -15,6 +15,10 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
     },
   });
 
+  if (!currentUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
   const cloudinaryResult = await new Promise<UploadApiResponse>(
     (resolve, reject) => {
       cloudinary.uploader.upload_stream(
@@ -25,14 +29,14 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
           if (error) {
             return reject(error);
           }
-          if (!result) {
-            return reject(
-              new AppError(
-                httpStatus.BAD_REQUEST,
-                "No result return from cloudinary.",
-              ),
-            );
-          }
+        if (!result) {
+          return reject(
+            new AppError(
+              httpStatus.INTERNAL_SERVER_ERROR,
+              "Failed to upload image.",
+            ),
+          );
+        }
           resolve(result);
         },
       ).end(buffer);
@@ -52,9 +56,13 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
     },
   });
 
-  if (currentUser?.imagePublicId && currentUser.image) {
-    await cloudinary.uploader.destroy(currentUser.imagePublicId);
-  }
+ if (currentUser.imagePublicId && currentUser.image) {
+   try {
+     await cloudinary.uploader.destroy(currentUser.imagePublicId);
+   } catch (error) {
+     console.error("Failed to delete old profile image:", error);
+   }
+ }
 
   return updatedUser;
 };

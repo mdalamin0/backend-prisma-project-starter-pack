@@ -4,6 +4,7 @@ import { Prisma } from "../../generated/prisma/client";
 import config from "../config";
 import AppError from "../errors/AppError";
 import { ZodError } from "zod";
+import multer from "multer";
 
 const globalErrorHandler = (
   err: unknown,
@@ -25,6 +26,13 @@ const globalErrorHandler = (
   if (err instanceof ZodError) {
     statusCode = httpStatus.BAD_REQUEST;
     errorMessage = err.issues[0]?.message || "Validation failed";
+  }
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      statusCode = httpStatus.BAD_REQUEST;
+      errorMessage = "File size must be less than 5MB.";
+    }
   }
 
   if (err instanceof Prisma.PrismaClientValidationError) {

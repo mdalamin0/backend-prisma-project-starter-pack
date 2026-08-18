@@ -4,7 +4,7 @@ export interface CreateUserPayload {
   name: string;
   email: string;
   password: string;
-  image?: string;
+  // image?: string;
   role?: Role
 }
 export interface IVerifyEmailPayload {
@@ -18,7 +18,6 @@ export interface LoginUserPayload {
 
 export interface ProfileUpdatePayload {
   name?: string;
-  image?: string;
 }
 
 export interface IForgotPasswordPayload {

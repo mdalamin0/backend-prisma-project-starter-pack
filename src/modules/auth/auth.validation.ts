@@ -25,7 +25,6 @@ export const loginValidationSchema = z.object({
 
 export const profileUpdateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").optional(),
-  image: z.string().url().optional(),
 });
 
 export const ForgotPasswordZodSchema = z.object({

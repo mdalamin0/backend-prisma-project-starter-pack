@@ -23,7 +23,7 @@ import { transporter } from "../../lib/nodemailer";
 import path from "path";
 
 const registerUser = async (payload: CreateUserPayload) => {
-  const { name, password, image, role } = payload;
+  const { name, password, role } = payload;
   const email = payload.email.trim().toLowerCase();
 
   const isExistsUser = await prisma.user.findUnique({
@@ -57,7 +57,6 @@ const registerUser = async (payload: CreateUserPayload) => {
     name,
     email,
     password: hashPassowrd,
-    image,
     role,
   };
 
@@ -141,7 +140,6 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
       name: userPayload.name,
       email: userPayload.email,
       password: userPayload.password,
-      image: userPayload.image,
       role: userPayload.role,
       emailVerified: true,
       provider: AuthProvider.CREDENTIAL,
@@ -262,7 +260,6 @@ const updateMe = async (payload: ProfileUpdatePayload, userId: string) => {
     },
     data: {
       name: payload.name,
-      image: payload.image,
     },
     omit: { password: true },
   });

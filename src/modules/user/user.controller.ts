@@ -12,7 +12,15 @@ const uploadProfileImage = catchAsync(
     }
 
     const userId = req.user?.id;
-   const result = await userServices.uploadProfileImage(req.file?.buffer, userId!);
+
+    if (!userId) {
+      throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated!");
+    }
+
+    const result = await userServices.uploadProfileImage(
+      req.file?.buffer,
+      userId,
+    );
 
     sendResponse(res, {
       message: "Profile image updated successfully.",
