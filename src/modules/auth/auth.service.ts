@@ -4,6 +4,7 @@ import {
   CreateUserPayload,
   IForgotPasswordPayload,
   IResetPasswordPayload,
+  IVerifyEmailPayload,
   LoginUserPayload,
   ProfileUpdatePayload,
 } from "./auth.interface";
@@ -22,7 +23,8 @@ import { transporter } from "../../lib/nodemailer";
 import path from "path";
 
 const registerUser = async (payload: CreateUserPayload) => {
-  const { name, email, password, image, role } = payload;
+  const { name, password, image, role } = payload;
+  const email = payload.email.trim().toLowerCase();
 
   const isExistsUser = await prisma.user.findUnique({
     where: {
@@ -39,19 +41,167 @@ const registerUser = async (payload: CreateUserPayload) => {
     Number(config.bcrypt_salt_rounds),
   );
 
-  const createdUser = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashPassowrd,
-      image,
-      role,
-      provider: AuthProvider.CREDENTIAL,
+  const expirationSeconds = 5 * 60;
+  const otpKey = `user-registration-otp:${email}`;
+  const otpValue = crypto.randomInt(100000, 1000000).toString();
+
+  await redisClient.set(otpKey, otpValue, {
+    expiration: {
+      type: "EX",
+      value: expirationSeconds,
     },
-    omit: { password: true },
   });
 
-  return createdUser;
+  const userRegistrationKey = `user-registration-data:${email}`;
+  const redisUserDataPayload = {
+    name,
+    email,
+    password: hashPassowrd,
+    image,
+    role,
+  };
+
+  await redisClient.set(
+    userRegistrationKey,
+    JSON.stringify(redisUserDataPayload),
+    {
+      expiration: {
+        type: "EX",
+        value: expirationSeconds,
+      },
+    },
+  );
+
+  const tempatePath = path.join(
+    process.cwd(),
+    "src/templates/registration-user-otp.ejs",
+  );
+
+  const templateData = {
+    name,
+    email,
+    otp: otpValue,
+    expirationMinutes: expirationSeconds / 60,
+  };
+
+  const html = await ejs.renderFile(tempatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: email,
+    subject: "Email Verification",
+    html,
+  });
+};
+
+const verifyEmail = async (payload: IVerifyEmailPayload) => {
+  const otp = payload.otp;
+  const email = payload.email.trim().toLowerCase();
+
+  const isUserExist = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (isUserExist?.status === "SUSPENDED") {
+    throw new AppError(httpStatus.FORBIDDEN, "User is suspended!");
+  }
+
+  if (isUserExist?.emailVerified) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Email already verified.");
+  }
+
+  const otpKey = `user-registration-otp:${email}`;
+
+  const redisOtp = await redisClient.get(otpKey);
+
+  if (!redisOtp) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid or expired OTP!");
+  }
+
+  if (redisOtp !== otp) {
+    throw new AppError(httpStatus.BAD_REQUEST, "OTP does not match!");
+  }
+
+  const userRegistrationKey = `user-registration-data:${email}`;
+
+  const redisUserData = await redisClient.get(userRegistrationKey);
+
+  if (!redisUserData) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Registration session expired. Please register again.",
+    );
+  }
+
+  const userPayload: CreateUserPayload = JSON.parse(redisUserData);
+
+  // Create user in database
+  const createdUser = await prisma.user.create({
+    data: {
+      name: userPayload.name,
+      email: userPayload.email,
+      password: userPayload.password,
+      image: userPayload.image,
+      role: userPayload.role,
+      emailVerified: true,
+      provider: AuthProvider.CREDENTIAL,
+    },
+    omit: {
+      password: true,
+    },
+  });
+
+  // Remove temporary registration data
+  await redisClient.del(otpKey);
+  await redisClient.del(userRegistrationKey);
+
+  // Welcome email is non-critical
+  try {
+    const templatePath = path.join(
+      process.cwd(),
+      "src/templates/user-welcome-email.ejs",
+    );
+
+    const templateData = {
+      name: createdUser.name,
+    };
+
+    const html = await ejs.renderFile(templatePath, templateData);
+
+    await transporter.sendMail({
+      from: config.email_sender,
+      to: email,
+      subject: "Welcome To B7A6 Project",
+      html,
+    });
+  } catch (error) {
+    console.error("Failed to send welcome email:", error);
+  }
+
+  // Generate JWT
+  const jwtPayload = {
+    userId: createdUser.id,
+    email: createdUser.email,
+    role: createdUser.role,
+  };
+
+  const accessToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions,
+  );
+
+  const refreshToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_refresh_secret,
+    config.jwt_refresh_expires_in as SignOptions,
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+    user: createdUser,
+  };
 };
 
 const generateTokens = async (user: PrismaUser) => {
@@ -169,7 +319,7 @@ const forgotPassword = async (payload: IForgotPasswordPayload) => {
     expirationMinutes: expirationSeconds / 60,
   };
 
-  const html = await ejs.renderFile(tempatePath, tempateData)
+  const html = await ejs.renderFile(tempatePath, tempateData);
 
   await transporter.sendMail({
     from: config.email_sender,
@@ -233,27 +383,28 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 
   await redisClient.del([key]);
 
-    const tempatePath = path.join(
-      process.cwd(),
-      "src/templates/reset-password-success.ejs",
-    );
+  const tempatePath = path.join(
+    process.cwd(),
+    "src/templates/reset-password-success.ejs",
+  );
 
-    const tempateData = {
-      name: isUserExist.name
-    };
+  const tempateData = {
+    name: isUserExist.name,
+  };
 
-    const html = await ejs.renderFile(tempatePath, tempateData);
+  const html = await ejs.renderFile(tempatePath, tempateData);
 
-    await transporter.sendMail({
-      from: config.email_sender,
-      to: isUserExist.email,
-      subject: "Password Changed",
-      html,
-    });
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: isUserExist.email,
+    subject: "Password Changed",
+    html,
+  });
 };
 
 export const authServices = {
   registerUser,
+  verifyEmail,
   generateTokens,
   getMe,
   updateMe,

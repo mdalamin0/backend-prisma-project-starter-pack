@@ -11,11 +11,46 @@ import type { AuthenticateCallback } from "passport";
 const registerUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const payload = req.body;
-    const result = await authServices.registerUser(payload);
+    await authServices.registerUser(payload);
 
     sendResponse(
       res,
-      { message: "User created successfully!", data: result },
+      { message: "Email Verification OTP Send.", data: null },
+      httpStatus.OK,
+    );
+  },
+);
+
+const verifyEmail = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const payload = req.body;
+    const { accessToken, refreshToken, user } =
+      await authServices.verifyEmail(payload);
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: config.node_env === "production" ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: config.node_env === "production" ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    sendResponse(
+      res,
+      {
+        message: "Email verified and user created successfully!",
+        data: {
+          accessToken,
+          refreshToken,
+          user,
+        },
+      },
       httpStatus.CREATED,
     );
   },
@@ -148,33 +183,34 @@ const forgotPassword = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const payload = req.body;
     await authServices.forgotPassword(payload);
-    
-      sendResponse(res, {
-        message: `OTP Sent To your Email : ${payload.email}`,
-        data: null,
-      });
+
+    sendResponse(res, {
+      message: `OTP Sent To your Email : ${payload.email}`,
+      data: null,
+    });
   },
 );
 
 const resetPassword = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-     const payload = req.body;
-     await authServices.resetPassword(payload);
+    const payload = req.body;
+    await authServices.resetPassword(payload);
 
-     sendResponse(res, {
-       message: `Password changed successfully!`,
-       data: null,
-     });
+    sendResponse(res, {
+      message: `Password changed successfully!`,
+      data: null,
+    });
   },
 );
 
 export const authControllers = {
   registerUser,
+  verifyEmail,
   loginUser,
   googleCallback,
   updateMe,
   getMe,
   logout,
   forgotPassword,
-  resetPassword
+  resetPassword,
 };

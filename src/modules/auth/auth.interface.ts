@@ -7,6 +7,10 @@ export interface CreateUserPayload {
   image?: string;
   role?: Role
 }
+export interface IVerifyEmailPayload {
+  email: string;
+  otp: string
+}
 export interface LoginUserPayload {
   email: string;
   password: string;

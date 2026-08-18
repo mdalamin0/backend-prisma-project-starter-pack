@@ -8,6 +8,9 @@ import { prisma } from "../lib/prisma";
 import { AuthProvider, Role, UserStatus } from "../../generated/prisma/enums";
 import bcrypt from "bcryptjs";
 import config from ".";
+import path from "path";
+import { transporter } from "../lib/nodemailer";
+import ejs from "ejs";
 
 passport.use(
   new LocalStrategy(
@@ -130,6 +133,27 @@ passport.use(
                 image: profile.photos?.[0]?.value,
               },
             });
+              try {
+                const templatePath = path.join(
+                  process.cwd(),
+                  "src/templates/user-welcome-email.ejs",
+                );
+            
+                const templateData = {
+                  name: user.name,
+                };
+            
+                const html = await ejs.renderFile(templatePath, templateData);
+            
+                await transporter.sendMail({
+                  from: config.email_sender,
+                  to: email,
+                  subject: "Welcome To B7A6 Project",
+                  html,
+                });
+              } catch (error) {
+                console.error("Failed to send welcome email:", error);
+              }
           }
         }
 

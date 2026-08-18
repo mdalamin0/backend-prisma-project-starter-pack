@@ -13,6 +13,11 @@ export const registerValidationSchema = z.object({
     .regex(/[^A-Za-z0-9]/, "Password must contain atleast 1 Special Character"),
 });
 
+export const userVerifyEmailZodSchema = z.object({
+  email: z.email("Invalid email address"),
+  otp: z.string().length(6),
+});
+
 export const loginValidationSchema = z.object({
   email: z.email("Invalid email address"),
   password: z.string(),

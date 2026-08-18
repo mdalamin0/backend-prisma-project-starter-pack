@@ -7,6 +7,7 @@ import {
   profileUpdateSchema,
   registerValidationSchema,
   ResetPasswordZodSchema,
+  userVerifyEmailZodSchema,
 } from "./auth.validation";
 import passport from "passport";
 import { auth } from "../../middlewares/auth";
@@ -18,6 +19,12 @@ router.post(
   "/register",
   validateRequest(registerValidationSchema),
   authControllers.registerUser,
+);
+
+router.post(
+  "/verify-email",
+  validateRequest(userVerifyEmailZodSchema),
+  authControllers.verifyEmail,
 );
 
 router.post(
