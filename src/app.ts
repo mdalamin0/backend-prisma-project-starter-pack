@@ -7,6 +7,7 @@ import globalErrorHandler from "./middlewares/globalErrorHandler";
 import { authRoutes } from "./modules/auth/auth.route";
 import "./config/passport";
 import { userRoutes } from "./modules/user/user.route";
+import { paymentRoutes } from "./modules/payment/payment.route";
 
 const app: Application = express();
 
@@ -33,11 +34,11 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-app.use("/api/auth", authRoutes)
-app.use("/api/user", userRoutes)
+app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/payment", paymentRoutes)
 
-
-app.use(notFound)
-app.use(globalErrorHandler)
+app.use(notFound);
+app.use(globalErrorHandler);
 
 export default app;
